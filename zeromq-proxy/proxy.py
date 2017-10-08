@@ -9,35 +9,45 @@ from multiprocessing import Process
 
 EGYM_ZMQ_SERVER = "tcp://35.195.199.160:5556"
 CUSTOM_ZMQ = "tcp://127.0.0.1:5556"
+ANDROID_ZMQ = "tcp://*:5557"
 
 
-# def server(server):
-#     """Server with custom events."""
-#     context = zmq.Context()
-#     socket = context.socket(zmq.REP)
-#     socket.bind(server)
-#     print("Running server {}".format(server))
-#     # serves only 5 request and dies
-#     while True:
-#         # Wait for next request from client
-#         message = socket.recv()
-#         print("Server: Received request %s" % message)
-#         socket.send("Server: Received %s" % server)
-#         # time.sleep(1)
+def server(android_server, custom_server):
+    """Server with custom events."""
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind(android_server)
+    print("Running Android ZMQ server {}".format(android_server))
+
+    socket_custom = get_publisher(custom_server)
+    while True:
+        # Wait for next request from client
+        message = socket.recv()
+        socket.send('pong')
+        print("Android Server: Received request %s" % message)
+        socket_custom.send(message)
 
 
-def client(origin_server, custom_server, topic_filter=""):
+def get_publisher(server):
+    """Get a custom piublisher."""
+    context = zmq.Context()
+    socket_custom = context.socket(zmq.PUB)
+
+    socket_custom.bind(server)
+
+    return socket_custom
+
+
+def egym_client(origin_server, custom_server, topic_filter=""):
     """Client to stream data to our proxy."""
     context = zmq.Context()
     socket_origin = context.socket(zmq.SUB)
-    socket_custom = context.socket(zmq.PUB)
-
     socket_origin.setsockopt(zmq.SUBSCRIBE, topic_filter)
 
     print("Connecting to origin server {}".format(origin_server))
     socket_origin.connect(origin_server)
-    print("Connecting to custom server {}".format(custom_server))
-    socket_custom.bind(custom_server)
+
+    socket_custom = get_publisher(custom_server)
 
     print("Ready to process messages")
     while True:
@@ -48,8 +58,8 @@ def client(origin_server, custom_server, topic_filter=""):
 
 
 if __name__ == "__main__":
-    # And pretened we have a custom ZMQ
-    # Process(target=server, args=(CUSTOM_ZMQ,)).start()
+    # And pretened we have a custom ZMQ server for wearables
+    Process(target=server, args=(ANDROID_ZMQ, CUSTOM_ZMQ)).start()
 
-    # Read all original data
-    Process(target=client, args=(EGYM_ZMQ_SERVER, CUSTOM_ZMQ)).start()
+    # forward all original eGYM data to a custom ZMQ
+    # Process(target=egym_client, args=(EGYM_ZMQ_SERVER, CUSTOM_ZMQ)).start()
