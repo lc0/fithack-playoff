@@ -57,6 +57,22 @@ def egym_client(origin_server, socket_custom, topic_filter=""):
         print("Proxied message: {}".format(message))
 
 
+def simple_flask(socket_custom):
+    """4am code, lovely jzmq dependencies for Mac."""
+    from flask import Flask
+    from flask import request
+    app = Flask(__name__)
+
+    @app.route('/no-zmq', methods=['POST'])
+    def login():
+        print(request.form)
+        publisher_queue.put(str(request.form['payload']))
+
+        return '{"status": "accepted"}'
+
+    app.run(port=8083)
+
+
 if __name__ == "__main__":
     publisher_queue = Queue()
 
@@ -68,3 +84,6 @@ if __name__ == "__main__":
 
     # And pretend we have a custom ZMQ server for wearables
     Process(target=server, args=(ANDROID_ZMQ, publisher_queue)).start()
+
+    # Add poor man's last choice - transfet over POST
+    Process(target=simple_flask, args=(publisher_queue, )).start()
