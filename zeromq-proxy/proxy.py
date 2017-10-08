@@ -2,8 +2,9 @@
 
 from __future__ import print_function
 
+import json
 import zmq
-# import time
+import time
 from multiprocessing import Process, Queue
 
 
@@ -57,6 +58,35 @@ def egym_client(origin_server, socket_custom, topic_filter=""):
         print("Proxied message: {}".format(message))
 
 
+EGYM_TEMPLATE = {"machine_id": "7777",
+                 "machine_type": "M100",
+                 "timestamp": time.time(),
+                 "rfid": "be0903ce",
+                 "payload": {}
+                 }
+
+
+def fake_egym(original_message):
+    """Format to the format egym expects."""
+    sensor_type, payload_str = original_message.split(" ", 1)
+    print(payload_str)
+
+    payload = json.loads(payload_str)
+
+    message = EGYM_TEMPLATE
+
+    value = float(payload['y'])
+
+    if value < .16:
+        value = 0
+    elif value > 1:
+        value = 1
+
+    message['payload']['position'] = value
+
+    return ' '.join(['training_position_data', json.dumps(message)])
+
+
 def simple_flask(socket_custom):
     """4am code, lovely jzmq dependencies for Mac."""
     from flask import Flask
@@ -64,9 +94,9 @@ def simple_flask(socket_custom):
     app = Flask(__name__)
 
     @app.route('/no-zmq', methods=['POST'])
-    def login():
+    def accept():
         print(request.form)
-        publisher_queue.put(str(request.form['payload']))
+        publisher_queue.put(fake_egym(str(request.form['payload'])))
 
         return '{"status": "accepted"}'
 
@@ -80,7 +110,7 @@ if __name__ == "__main__":
     Process(target=publisher, args=(CUSTOM_ZMQ, publisher_queue)).start()
 
     # Forward all original eGYM data to a custom ZMQ
-    Process(target=egym_client, args=(EGYM_ZMQ_SERVER, publisher_queue)).start()
+    # Process(target=egym_client, args=(EGYM_ZMQ_SERVER, publisher_queue)).start()
 
     # And pretend we have a custom ZMQ server for wearables
     Process(target=server, args=(ANDROID_ZMQ, publisher_queue)).start()
