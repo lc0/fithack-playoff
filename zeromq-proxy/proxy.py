@@ -58,7 +58,7 @@ def egym_client(origin_server, socket_custom, topic_filter=""):
         print("Proxied message: {}".format(message))
 
 
-EGYM_TEMPLATE = {"machine_id": "7777",
+EGYM_TEMPLATE = {"machine_id": "realiable-android",
                  "machine_type": "M100",
                  "timestamp": time.time(),
                  "rfid": "be0903ce",
@@ -75,7 +75,7 @@ def fake_egym(original_message):
 
     message = EGYM_TEMPLATE
 
-    value = float(payload['y'])
+    value = float(payload['y']) * 0.8
 
     if value < .16:
         value = 0
